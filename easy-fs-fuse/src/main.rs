@@ -99,7 +99,7 @@ fn efs_test() -> std::io::Result<()> {
             .write(true)
             .create(true)
             .open("target/fs.img")?;
-        f.set_len(BLOCK_NUM * BLOCK_SZ).unwrap();
+        f.set_len(BLOCK_NUM as u64 * BLOCK_SZ as u64).unwrap();
         f
     })));
     EasyFileSystem::create(block_file.clone(), 4096, 1);

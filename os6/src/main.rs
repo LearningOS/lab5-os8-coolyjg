@@ -30,6 +30,8 @@ extern crate alloc;
 #[macro_use]
 mod console;
 mod config;
+mod drivers;
+mod fs;
 mod lang_items;
 mod logging;
 mod mm;
@@ -39,8 +41,6 @@ mod syscall;
 mod task;
 mod timer;
 mod trap;
-mod drivers;
-mod fs;
 
 core::arch::global_asm!(include_str!("entry.asm"));
 

@@ -19,4 +19,4 @@ easy-fs = { path = "../easy-fs" }
 
 [profile.release]
 debug = true
-opt-level = 0
+# opt-level = 0
