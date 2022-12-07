@@ -2,7 +2,7 @@ use super::id::RecycleAllocator;
 use super::{add_task, pid_alloc, PidHandle, TaskControlBlock};
 use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{translated_refmut, MemorySet, KERNEL_SPACE};
-use crate::sync::{Condvar, Mutex, Semaphore, UPSafeCell};
+use crate::sync::{Condvar, Mutex, Semaphore, UPSafeCell, Detector};
 use crate::trap::{trap_handler, TrapContext};
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
@@ -19,6 +19,8 @@ pub struct ProcessControlBlock {
 
 // LAB5 HINT: you may add data structures for deadlock detection here
 pub struct ProcessControlBlockInner {
+    pub detection: bool,
+    pub detector: Detector,
     pub is_zombie: bool,
     pub memory_set: MemorySet,
     pub parent: Option<Weak<ProcessControlBlock>>,
@@ -79,6 +81,8 @@ impl ProcessControlBlock {
             pid: pid_handle,
             inner: unsafe {
                 UPSafeCell::new(ProcessControlBlockInner {
+                    detection: false,
+                    detector: Detector::new(),
                     is_zombie: false,
                     memory_set,
                     parent: None,
@@ -207,6 +211,8 @@ impl ProcessControlBlock {
             pid,
             inner: unsafe {
                 UPSafeCell::new(ProcessControlBlockInner {
+                    detection: false,
+                    detector: Detector::new(),
                     is_zombie: false,
                     memory_set,
                     parent: Some(Arc::downgrade(self)),
@@ -261,6 +267,8 @@ impl ProcessControlBlock {
             pid: super::pid_alloc(),
             inner: unsafe {
                 UPSafeCell::new(ProcessControlBlockInner {
+                    detection: false,
+                    detector: Detector::new(),
                     is_zombie: false,
                     memory_set: memory_set,
                     parent: None,
