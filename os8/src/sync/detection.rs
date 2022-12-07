@@ -52,7 +52,7 @@ impl ResourceList{
         true
     }
 
-    pub fn is_dead(&mut self, tid: usize, rid: usize, size: usize) -> bool{
+    pub fn is_dead(&mut self, tid: usize, rid: usize, size: usize, task_set: Vec<bool>) -> bool{
         if tid >= self.need.len(){
             let n = tid - self.need.len();
             for _ in 0..=n{
@@ -73,22 +73,30 @@ impl ResourceList{
             return false;
         }
         let mut flag = false;
-        for &t in self.task_id.iter(){
-            if self.need[t].len() == 0{
-                flag = true;
+        let mut check = true;
+        for i in 0..task_set.len(){
+            if !task_set[i]{
+                check = false;
                 break;
-            }else{
-                let mut f = true;
-                for j in 0..self.need[t].len(){
-                    if self.need[t][j]!=0 && !self.is_enough(j, self.need[t][j]){
-                        f = false;
-                        break;
-                    }
-                }
-                if f {
-                    flag = true;
+            }
+        }
+        if check{
+            return false;
+        }
+        for i in 0..task_set.len(){
+            if task_set[i]{
+                continue;
+            }
+            let mut f = true;
+            for j in 0..self.need[i].len(){
+                if self.need[i][j]!=0 && !self.is_enough(j, self.need[i][j]){
+                    f = false;
                     break;
                 }
+            }
+            if f {
+                flag = true;
+                break;
             }
         }
         !flag
@@ -130,8 +138,8 @@ impl Detector{
         self.semes.cycle(sid, 1, tid)
     }
 
-    pub fn check_mutex(&mut self, tid: usize, mid: usize) -> isize{
-        if self.mutexes.is_dead(tid, mid, 1){
+    pub fn check_mutex(&mut self, tid: usize, mid: usize, task_set: Vec<bool>) -> isize{
+        if self.mutexes.is_dead(tid, mid, 1, task_set){
             return -0xdead;
         }
         0
@@ -141,8 +149,8 @@ impl Detector{
         self.mutexes.alloc_one(1, mid, tid);
     }
 
-    pub fn check_semaphore(&mut self, tid: usize, sid: usize) -> isize{
-        if self.semes.is_dead(tid, sid, 1){
+    pub fn check_semaphore(&mut self, tid: usize, sid: usize, task_set: Vec<bool>) -> isize{
+        if self.semes.is_dead(tid, sid, 1, task_set){
             return -0xdead;
         }
         0

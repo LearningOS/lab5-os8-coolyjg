@@ -2,6 +2,7 @@ use crate::sync::{Condvar, Mutex, MutexBlocking, MutexSpin, Semaphore};
 use crate::task::{block_current_and_run_next, current_process, current_task};
 use crate::timer::{add_timer, get_time_ms};
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 
 pub fn sys_sleep(ms: usize) -> isize {
     let expire_ms = get_time_ms() + ms;
@@ -49,11 +50,21 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
     let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
     drop(process_inner);
     drop(process);
-    let tid = {current_task().unwrap().process.upgrade().unwrap().getpid() as isize};
+    let tid = {current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .tid as isize};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
-        if process_inner.detector.check_mutex(tid as usize, mutex_id) != 0{
+        let task_set = process_inner.tasks
+            .iter().map(|t| 
+                t.as_ref().map_or(true, |tt| tt.inner_exclusive_access().res.is_none())
+            ).collect::<Vec<_>>();
+        if process_inner.detector.check_mutex(tid as usize, mutex_id, task_set) != 0{
             return -0xdead;
         }
     }
@@ -73,7 +84,13 @@ pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
     let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
     drop(process_inner);
     drop(process);
-    let tid = {current_task().unwrap().process.upgrade().unwrap().getpid() as isize};
+    let tid = {current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .tid as isize};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
@@ -114,7 +131,13 @@ pub fn sys_semaphore_up(sem_id: usize) -> isize {
     let det = process_inner.detection;
     let sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());
     drop(process_inner);
-    let tid = {current_task().unwrap().process.upgrade().unwrap().getpid() as isize};
+    let tid = {current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .tid as isize};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
@@ -131,13 +154,21 @@ pub fn sys_semaphore_down(sem_id: usize) -> isize {
     let det = process_inner.detection;
     let sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());
     drop(process_inner);
-    let tid = {current_task().unwrap().process.upgrade().unwrap().getpid() as isize};
+    let tid = {current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .tid as isize};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
-        // let task_set = process_inner.tasks
-        //     .iter().map(|t| t.as_ref().map_or())
-        if process_inner.detector.check_semaphore(tid as usize, sem_id) != 0{
+        let task_set = process_inner.tasks
+            .iter().map(|t| 
+                t.as_ref().map_or(true, |tt| tt.inner_exclusive_access().res.is_none())
+            ).collect::<Vec<_>>();
+        if process_inner.detector.check_semaphore(tid as usize, sem_id, task_set) != 0{
             return -0xdead;
         }
     }
