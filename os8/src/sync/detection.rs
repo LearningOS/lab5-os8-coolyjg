@@ -81,35 +81,43 @@ impl ResourceList{
         if self.is_enough(rid, size){
             return false;
         }
-        let mut workable = false;
         let not_finish = task_set.iter().any(|t| *t == false);
         if !not_finish{
             return false;
         }
-        for i in 0..task_set.len(){
-            if i == 0 && tid != 0{
-                continue;
+        let mut task_set = task_set;
+        let allocated = self.allocated.clone();
+        let mut avail = self.avail.clone();
+        loop{
+            let all_finish = task_set.iter().all(|t| *t == true);
+            if all_finish{
+                return false;
             }
-            if i >= self.need.len(){
-                break;
+            let mut cnt = 0;
+            for i in 0..task_set.len(){
+                if i >= self.need.len(){
+                    break;
+                }
+                if task_set[i]{
+                    continue;
+                }
+                let enough_i = self.need[i].iter().enumerate()
+                    .all(|(idx, &t)| avail[idx] >= t as i32);
+                if enough_i{
+                    avail.iter_mut().enumerate()
+                        .for_each(|(idx, n)| 
+                        if idx < allocated[i].len(){
+                            *n += allocated[i][idx] as i32;
+                        }
+                    );
+                    task_set[i] = true;
+                    cnt += 1;
+                }
             }
-            if task_set[i]{
-                continue;
-            }
-            let not_enough_i = self.need[i].iter().enumerate()
-                .any(|(idx, t)| *t != 0 
-                    && !self.is_enough(idx, 1));
-            if !not_enough_i{
-                debug!("{} can work", i);
-                workable = true;
-                break;
+            if cnt == 0{
+                return true;
             }
         }
-        if !workable{
-            self.need[tid].iter_mut().for_each(|c| *c = 0);
-            info!("{} deadlock deteted!",tid);
-        }
-        !workable
     }
 
     pub fn cycle(&mut self, rid: usize, size: usize, tid: usize){
