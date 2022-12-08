@@ -56,7 +56,7 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
         .res
         .as_ref()
         .unwrap()
-        .tid as isize};
+        .tid};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
@@ -64,7 +64,7 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
             .iter().map(|t| 
                 t.as_ref().map_or(true, |tt| tt.inner_exclusive_access().res.is_none())
             ).collect::<Vec<_>>();
-        if process_inner.detector.check_mutex(tid as usize, mutex_id, task_set) != 0{
+        if process_inner.detector.check_mutex(tid, mutex_id, task_set){
             return -0xdead;
         }
     }
@@ -72,7 +72,7 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
-        process_inner.detector.alloc_mutex(tid as usize, mutex_id);
+        process_inner.detector.alloc_mutex(tid, mutex_id);
     }
     0
 }
@@ -90,11 +90,11 @@ pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
         .res
         .as_ref()
         .unwrap()
-        .tid as isize};
+        .tid};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
-        process_inner.detector.cycle_mutex(tid as usize, mutex_id);
+        process_inner.detector.cycle_mutex(tid, mutex_id);
     }
     mutex.unlock();
     0
@@ -137,11 +137,11 @@ pub fn sys_semaphore_up(sem_id: usize) -> isize {
         .res
         .as_ref()
         .unwrap()
-        .tid as isize};
+        .tid};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
-        process_inner.detector.cycle_sem(tid as usize, sem_id)
+        process_inner.detector.cycle_sem(tid, sem_id)
     }
     sem.up();
     0
@@ -160,7 +160,7 @@ pub fn sys_semaphore_down(sem_id: usize) -> isize {
         .res
         .as_ref()
         .unwrap()
-        .tid as isize};
+        .tid};
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
@@ -168,7 +168,7 @@ pub fn sys_semaphore_down(sem_id: usize) -> isize {
             .iter().map(|t| 
                 t.as_ref().map_or(true, |tt| tt.inner_exclusive_access().res.is_none())
             ).collect::<Vec<_>>();
-        if process_inner.detector.check_semaphore(tid as usize, sem_id, task_set) != 0{
+        if process_inner.detector.check_semaphore(tid, sem_id, task_set){
             return -0xdead;
         }
     }
@@ -176,7 +176,7 @@ pub fn sys_semaphore_down(sem_id: usize) -> isize {
     if det{
         let process = current_process();
         let mut process_inner = process.inner_exclusive_access();
-        process_inner.detector.alloc_semaphore(tid as usize, sem_id);
+        process_inner.detector.alloc_semaphore(tid, sem_id);
     }
     0
 }

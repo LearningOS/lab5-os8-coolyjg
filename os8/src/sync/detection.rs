@@ -7,12 +7,11 @@ pub struct ResourceList{
     pub avail: Vec<i32>,
     pub allocated: Vec<Vec<usize>>,
     pub need: Vec<Vec<usize>>,
-    pub task_id: Vec<usize>,
 }
 
 impl ResourceList{
     pub fn new() -> Self{
-        Self { avail: Vec::new(), allocated: Vec::new(), need: Vec::new(), task_id: Vec::new()}
+        Self { avail: Vec::new(), allocated: Vec::new(), need: Vec::new()}
     }
 
     pub fn init_size(&mut self, size: usize, rid: usize){
@@ -28,6 +27,7 @@ impl ResourceList{
     }
 
     pub fn alloc_one(&mut self, size: usize, rid: usize, tid: usize){
+        debug!("{} alloc {}, size: {}", tid, rid, size);
         if tid >= self.allocated.len(){
             let n = tid - self.allocated.len();
             for _ in 0..=n{
@@ -40,9 +40,15 @@ impl ResourceList{
                 self.allocated[tid].push(0);
             }
         }
-        self.allocated[tid][rid] = size;
+        debug!("before alloc: allocated: {:?}", self.allocated[tid]);
+        self.allocated[tid][rid] += size;
         self.avail[rid] -= size as i32;
         self.need[tid][rid] -= size;
+        debug!("after alloc: allocated: {:?}", self.allocated[tid]);
+        // let check = self.need[tid].iter().any(|n| *n !=0);
+        // if !check{
+        //     self.need[tid].clear();
+        // }
     }
 
     pub fn is_enough(&self, rid: usize, size: usize) -> bool{
@@ -53,6 +59,7 @@ impl ResourceList{
     }
 
     pub fn is_dead(&mut self, tid: usize, rid: usize, size: usize, task_set: Vec<bool>) -> bool{
+        debug!("{} check deadlock, request {}", tid, rid);
         if tid >= self.need.len(){
             let n = tid - self.need.len();
             for _ in 0..=n{
@@ -65,46 +72,52 @@ impl ResourceList{
                 self.need[tid].push(0);
             }
         }
+        debug!("before {} add need: \navail: {:?}, allocated: {:?}, need: {:?}, task_set: {:?}", 
+            tid, self.avail, self.allocated, self.need, task_set);
         self.need[tid][rid] = size;
-        if !self.task_id.contains(&tid){
-            self.task_id.push(tid);
+        if tid != 0 && rid == 0{
+            return false;
         }
         if self.is_enough(rid, size){
             return false;
         }
-        let mut flag = false;
-        let mut check = true;
-        for i in 0..task_set.len(){
-            if !task_set[i]{
-                check = false;
-                break;
-            }
-        }
-        if check{
+        let mut workable = false;
+        let not_finish = task_set.iter().any(|t| *t == false);
+        if !not_finish{
             return false;
         }
         for i in 0..task_set.len(){
+            if i == 0 && tid != 0{
+                continue;
+            }
+            if i >= self.need.len(){
+                break;
+            }
             if task_set[i]{
                 continue;
             }
-            let mut f = true;
-            for j in 0..self.need[i].len(){
-                if self.need[i][j]!=0 && !self.is_enough(j, self.need[i][j]){
-                    f = false;
-                    break;
-                }
-            }
-            if f {
-                flag = true;
+            let not_enough_i = self.need[i].iter().enumerate()
+                .any(|(idx, t)| *t != 0 
+                    && !self.is_enough(idx, 1));
+            if !not_enough_i{
+                debug!("{} can work", i);
+                workable = true;
                 break;
             }
         }
-        !flag
+        if !workable{
+            self.need[tid].iter_mut().for_each(|c| *c = 0);
+            info!("{} deadlock deteted!",tid);
+        }
+        !workable
     }
 
     pub fn cycle(&mut self, rid: usize, size: usize, tid: usize){
         self.avail[rid] += size as i32;
+        debug!("{} release {} size: {}", tid, rid, size);
+        debug!("before release, allocated: {:?}", self.allocated[tid]);
         self.allocated[tid][rid] -= size;
+        debug!("after release, allocated: {:?}", self.allocated[tid]);
     }
 }
 
@@ -138,22 +151,16 @@ impl Detector{
         self.semes.cycle(sid, 1, tid)
     }
 
-    pub fn check_mutex(&mut self, tid: usize, mid: usize, task_set: Vec<bool>) -> isize{
-        if self.mutexes.is_dead(tid, mid, 1, task_set){
-            return -0xdead;
-        }
-        0
+    pub fn check_mutex(&mut self, tid: usize, mid: usize, task_set: Vec<bool>) -> bool{
+        self.mutexes.is_dead(tid, mid, 1, task_set)
     }
 
     pub fn alloc_mutex(&mut self, tid: usize, mid: usize){
         self.mutexes.alloc_one(1, mid, tid);
     }
 
-    pub fn check_semaphore(&mut self, tid: usize, sid: usize, task_set: Vec<bool>) -> isize{
-        if self.semes.is_dead(tid, sid, 1, task_set){
-            return -0xdead;
-        }
-        0
+    pub fn check_semaphore(&mut self, tid: usize, sid: usize, task_set: Vec<bool>) -> bool{
+        self.semes.is_dead(tid, sid, 1, task_set)
     }
 
     pub fn alloc_semaphore(&mut self, tid: usize, sid: usize){

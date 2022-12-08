@@ -23,6 +23,7 @@ const RES_NUM: [usize; RES_TYPE] = [1, 2, 1];
 const REQUEST: [Option<usize>; THREAD_N] = [Some(1), Some(3), Some(2)];
 
 fn try_sem_down(sem_id: usize) {
+    println!("before aquire {}...", sem_id);
     if semaphore_down(sem_id) == -0xdead {
         sem_dealloc(gettid() as usize);
         println!("Deadlock detected. Test 08_sem1 failed!");
@@ -40,7 +41,9 @@ fn sem_alloc(tid: usize) {
         3 => assert_eq!(semaphore_down(3), 0),
         _ => exit(1),
     }
+    println!("{} waiting...", tid);
     semaphore_down(SEM_BARRIER);
+    println!("{} set out...", tid);
 }
 
 fn sem_dealloc(tid: usize) {
