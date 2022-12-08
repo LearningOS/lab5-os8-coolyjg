@@ -34,7 +34,11 @@ jobs:
             ./configure --target-list=riscv64-softmmu
             make -j
           else
+            wget https://download.qemu.org/qemu-7.0.0.tar.xz
+            tar -xf qemu-7.0.0.tar.xz
             cd qemu-7.0.0
+            ./configure --target-list=riscv64-softmmu
+            make -j
           fi
           sudo make install
           qemu-system-riscv64 --version
