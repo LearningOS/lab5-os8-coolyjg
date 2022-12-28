@@ -67,14 +67,16 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // Record exit code
     inner.exit_code = exit_code;
     // do not move to its parent but under initproc
-
+    let pid = task.getpid();
     // ++++++ access initproc TCB exclusively
-    {
+    if pid != 0{
         let mut initproc_inner = INITPROC.inner_exclusive_access();
         for child in inner.children.iter() {
             child.inner_exclusive_access().parent = Some(Arc::downgrade(&INITPROC));
             initproc_inner.children.push(child.clone());
         }
+    }else{
+        info!("-------------------> INITPROC exit <-------------------");
     }
     // ++++++ release parent PCB
 
