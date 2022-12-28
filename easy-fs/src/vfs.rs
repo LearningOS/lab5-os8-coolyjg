@@ -40,6 +40,23 @@ impl Inode {
         })
     }
 
+    pub fn get_dentry(&self, ino: u32) -> DirEntry{
+        let mut dir = DirEntry::empty();
+        self.read_disk_inode(|root_inode|{
+            let file_count = (root_inode.size as usize) / DIRENT_SZ;
+            for i in 0..file_count{
+                assert_eq!(
+                    root_inode.read_at(DIRENT_SZ * i, dir.as_bytes_mut(), &self.block_device),
+                    DIRENT_SZ,
+                );
+                if dir.inode_number() == ino{
+                    break;
+                }
+            }
+        });
+        dir
+    }
+
     pub fn check_nlinks(&self, ino: u32) -> u32 {
         let mut ret = 0;
         self.read_disk_inode(|root_inode| {
@@ -52,10 +69,34 @@ impl Inode {
                 );
                 if dir.inode_number() == ino {
                     ret += 1;
+                    // self.find(dir.name()).unwrap().read_disk_inode(|dinode|{
+                    //     ret = dinode.get_nlink()
+                    // });
+                    // break;
                 }
             }
         });
         ret
+    }
+
+    pub fn get_nlink(&self) -> u32{
+        let mut ret = 0;
+        self.read_disk_inode(|dinode|{
+            ret = dinode.get_nlink()
+        });
+        ret
+    }
+
+    pub fn increase_nlink(&self){
+        self.modify_disk_inode(|dinode|{
+            dinode.increase_nlink();
+        })
+    }
+
+    pub fn decrease_nlink(&self){
+        self.modify_disk_inode(|dinode|{
+            dinode.decrease_nlink();
+        })
     }
 
     pub fn append_dir(&self, dir: DirEntry) {

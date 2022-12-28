@@ -154,7 +154,8 @@ impl File for OSInode {
             DiskInodeType::Directory => StatMode::DIR,
             DiskInodeType::File => StatMode::FILE,
         };
-        let nlink = ROOT_INODE.check_nlinks(ino as u32);
+        let dentry = ROOT_INODE.get_dentry(ino as u32);
+        let nlink = ROOT_INODE.find(dentry.name()).unwrap().get_nlink();
         Stat::new(dev, ino, mode, nlink)
     }
 }
@@ -164,15 +165,21 @@ pub fn linkat(old_name: &str, new_name: &str) -> isize {
     let new_id = old_id;
     let new_entry = DirEntry::new(new_name, new_id);
     ROOT_INODE.append_dir(new_entry);
+    ROOT_INODE.find(new_name).unwrap().increase_nlink();
     0
 }
 
 pub fn unlinkat(name: &str) -> isize {
     let inode = ROOT_INODE.find(name).unwrap();
-    let n = inode.get_ino_from_pos();
-    if ROOT_INODE.check_nlinks(n as u32) == 1{
+    // let n = inode.get_ino_from_pos();
+    if inode.get_nlink() == 1{
         inode.clear();
     }
+    inode.decrease_nlink();
+    // if ROOT_INODE.check_nlinks(n as u32) == 1{
+    //     inode.clear();
+    // }
+    // ROOT_INODE.find(name).unwrap().decrease_nlink();
     ROOT_INODE.remove_dir(name);
     0
 }

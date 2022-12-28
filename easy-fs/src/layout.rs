@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 /// Magic number for sanity check
 const EFS_MAGIC: u32 = 0x3b800001;
 /// The max number of direct inodes
-const INODE_DIRECT_COUNT: usize = 28;
+const INODE_DIRECT_COUNT: usize = 28 - 1;
 /// The max length of inode name
 const NAME_LENGTH_LIMIT: usize = 27;
 /// The max number of indirect1 inodes
@@ -93,6 +93,21 @@ pub struct DiskInode {
     pub indirect1: u32,
     pub indirect2: u32,
     type_: DiskInodeType,
+    pub nlinks: u32, 
+}
+
+impl DiskInode{
+    pub fn increase_nlink(&mut self){
+        self.nlinks += 1;
+    }
+
+    pub fn get_nlink(&self) -> u32{
+        self.nlinks
+    }
+
+    pub fn decrease_nlink(&mut self){
+        self.nlinks -= 1;
+    }
 }
 
 impl DiskInode {
@@ -104,6 +119,7 @@ impl DiskInode {
         self.indirect1 = 0;
         self.indirect2 = 0;
         self.type_ = type_;
+        self.nlinks = 1;
     }
     /// Whether this inode is a directory
     pub fn is_dir(&self) -> bool {
